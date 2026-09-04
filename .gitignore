@@ -1,4 +1,7 @@
 backend/.venv/
+data/
+*.pt
+yolo*.pt
 backend/__pycache__/
 backend/app/__pycache__/
 backend/sahaayak.db

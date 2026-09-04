@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const tabs = ["Overview", "Events", "Taxonomy", "Assistant", "Responsible AI", "Ingest"];
+const tabs = ["Overview", "Live wall", "Events", "Taxonomy", "Assistant", "Responsible AI", "Ingest"];
 
 export default function App() {
   const [tab, setTab] = useState("Overview");
   const [summary, setSummary] = useState(null);
   const [events, setEvents] = useState([]);
   const [tax, setTax] = useState([]);
-  const [q, setQ] = useState("How much damage exposure today in Bay-A?");
+  const [q, setQ] = useState("How much damage exposure today?");
   const [chat, setChat] = useState([]);
   const [ingest, setIngest] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function refresh() {
+    setSummary(await fetch("/api/summary").then((r) => r.json()));
+    setEvents(await fetch("/api/events").then((r) => r.json()));
+    setTax(await fetch("/api/taxonomy").then((r) => r.json()));
+  }
 
   useEffect(() => {
-    fetch("/api/summary").then((r) => r.json()).then(setSummary);
-    fetch("/api/events").then((r) => r.json()).then(setEvents);
-    fetch("/api/taxonomy").then((r) => r.json()).then(setTax);
+    refresh();
   }, []);
 
   async function send() {
@@ -30,31 +35,52 @@ export default function App() {
   async function upload(e) {
     const f = e.target.files?.[0];
     if (!f) return;
+    setBusy(true);
     const fd = new FormData();
     fd.append("file", f);
     const res = await fetch("/api/ingest", { method: "POST", body: fd }).then((r) => r.json());
     setIngest(res);
-    const s = await fetch("/api/summary").then((r) => r.json());
-    setSummary(s);
-    setEvents(await fetch("/api/events").then((r) => r.json()));
+    setBusy(false);
+    await refresh();
+    setTab("Events");
+  }
+
+  async function runDemo() {
+    setBusy(true);
+    const res = await fetch("/api/ingest-demo", { method: "POST" }).then((r) => r.json());
+    setIngest(res);
+    setBusy(false);
+    await refresh();
+    setTab("Live wall");
+  }
+
+  async function verdict(id, v) {
+    await fetch("/api/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_id: id, verdict: v }),
+    });
+    await refresh();
   }
 
   const bars = summary
-    ? Object.entries(summary.by_behaviour).map(([k, v]) => ({ name: k.replaceAll("_", " "), n: v }))
+    ? Object.entries(summary.by_behaviour || {}).map(([k, v]) => ({ name: k.replaceAll("_", " "), n: v }))
     : [];
 
   return (
     <div className="shell">
       <aside className="nav">
-        <div className="brand">SAHA<span>AYAK</span></div>
-        <div className="tag">Warehouse handling co-pilot · Godrej × graVITas ’26</div>
+        <div className="brand">
+          SAHA<span>AYAK</span>
+        </div>
+        <div className="tag">Warehouse handling co-pilot · tracklets, not pixels</div>
         {tabs.map((t) => (
           <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
             {t}
           </button>
         ))}
         <p className="tiny" style={{ marginTop: 28 }}>
-          We score bays, shifts and processes — not named employees.
+          LLM never sees frames. Behaviour engine consumes TrackFeatures only.
         </p>
       </aside>
       <main className="main">
@@ -62,13 +88,11 @@ export default function App() {
           <>
             <div className="headline">{summary.headline}</div>
             <div className="journey">
-              {["Activity", "Video", "AI understanding", "Risk", "Alert", "Intervention", "Prevention"].map(
-                (s, i) => (
-                  <i key={s} className={i === 6 ? "hi" : ""}>
-                    {s}
-                  </i>
-                )
-              )}
+              {["Activity", "Video", "Tracklets", "FSM", "Risk", "Alert", "Prevention"].map((s, i) => (
+                <i key={s} className={i === 6 ? "hi" : ""}>
+                  {s}
+                </i>
+              ))}
             </div>
             <div className="kpis">
               <div className="card">
@@ -81,13 +105,13 @@ export default function App() {
               </div>
               <div className="card">
                 <h3>Damage exposure</h3>
-                <div className="n">₹{summary.exposure_inr.toLocaleString("en-IN")}</div>
+                <div className="n">₹{(summary.exposure_inr || 0).toLocaleString("en-IN")}</div>
               </div>
               <div className="card">
                 <h3>Honesty mix</h3>
                 <div className="tiny">
-                  {Object.entries(summary.by_honesty)
-                    .map(([k, v]) => `${k.replaceAll("_", " ")} ${v}`)
+                  {Object.entries(summary.by_honesty || {})
+                    .map(([k, v]) => `${k} ${v}`)
                     .join(" · ")}
                 </div>
               </div>
@@ -98,7 +122,7 @@ export default function App() {
                 <div style={{ height: 260 }}>
                   <ResponsiveContainer>
                     <BarChart data={bars}>
-                      <XAxis dataKey="name" tick={{ fill: "#8fa3b5", fontSize: 10 }} interval={0} angle={-20} />
+                      <XAxis dataKey="name" tick={{ fill: "#8fa3b5", fontSize: 10 }} interval={0} angle={-25} />
                       <YAxis tick={{ fill: "#8fa3b5", fontSize: 11 }} />
                       <Tooltip />
                       <Bar dataKey="n" fill="#e24c3a" radius={[4, 4, 0, 0]} />
@@ -107,25 +131,44 @@ export default function App() {
                 </div>
               </div>
               <div className="card">
-                <h3>By bay</h3>
-                {Object.entries(summary.by_bay).map(([k, v]) => (
+                <h3>Bay heat</h3>
+                {Object.entries(summary.by_bay || {}).map(([k, v]) => (
                   <p key={k}>
                     {k} — <b>{v}</b>
                   </p>
                 ))}
-                <p className="tiny">Anonymous Handler-IDs are clip-local. Faces are blurred before storage.</p>
               </div>
             </div>
           </>
         )}
 
+        {tab === "Live wall" && (
+          <div className="card">
+            <h3>Live / last ingest overlay</h3>
+            <p className="tiny">
+              Boxes are drawn on the evidence clip. Run the synthetic dock clip or upload Godrej MP4.
+            </p>
+            <button className="primary" disabled={busy} onClick={runDemo}>
+              {busy ? "Inferring…" : "Run synthetic DROP clip"}
+            </button>
+            {ingest && (
+              <>
+                <p>
+                  Backend {ingest.backend} · {ingest.frames} frames · {ingest.events?.length || 0} events
+                </p>
+                <pre className="tiny">{JSON.stringify(ingest.events, null, 2)}</pre>
+              </>
+            )}
+          </div>
+        )}
+
         {tab === "Events" && (
           <div className="card">
-            <h3>Event store — three-state honesty</h3>
+            <h3>Event store — three-state honesty · human review</h3>
             <table>
               <thead>
                 <tr>
-                  <th>Time</th>
+                  <th>ID</th>
                   <th>Bay</th>
                   <th>Behaviour</th>
                   <th>SKU</th>
@@ -133,21 +176,26 @@ export default function App() {
                   <th>J</th>
                   <th>₹</th>
                   <th>State</th>
+                  <th>Review</th>
                 </tr>
               </thead>
               <tbody>
                 {events.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.ts?.slice(11, 16) || e.ts}</td>
+                  <tr key={e.id} style={{ opacity: e.dismissed ? 0.4 : 1 }}>
+                    <td>{e.id}</td>
                     <td>{e.bay}</td>
-                    <td>{e.behaviour.replaceAll("_", " ")}</td>
+                    <td>{e.behaviour}</td>
                     <td>{e.product_class}</td>
                     <td>
-                      <span className={`band ${e.band}`}>{e.band}</span>
+                      <span className={`band ${e.risk_level}`}>{e.risk_level}</span>
                     </td>
                     <td>{e.impact_j}</td>
                     <td>{e.exposure_inr}</td>
-                    <td className="honesty">{e.honesty.replaceAll("_", " ")}</td>
+                    <td className="honesty">{e.state}</td>
+                    <td>
+                      <button onClick={() => verdict(e.id, "confirm")}>confirm</button>
+                      <button onClick={() => verdict(e.id, "dismiss")}>down</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -162,7 +210,6 @@ export default function App() {
                 <h3>
                   {i + 1}. {b.name}
                 </h3>
-                <p className="tiny">{b.detection}</p>
                 <p>Coach: {b.good}</p>
               </div>
             ))}
@@ -171,7 +218,7 @@ export default function App() {
 
         {tab === "Assistant" && (
           <div className="card">
-            <h3>Co-pilot — tool-calling over events, never pixels</h3>
+            <h3>Co-pilot — tools over events, never pixels</h3>
             <div className="chatlog">
               {chat.map((m, i) => (
                 <div key={i} className={`bubble ${m.role}`}>
@@ -192,25 +239,25 @@ export default function App() {
           <div className="grid2">
             <div className="card">
               <h3>Anonymous by default</h3>
-              <p>Faces are blurred at the edge before any frame is stored. A person is Handler-A inside one clip only. Identity is never persisted across clips.</p>
-              <p>Reporting is by bay / shift / process. One toggle: a supervisor may attribute an event to a person only after human review.</p>
+              <p>Faces stay off the event record. Handler-IDs are clip-local. Reporting is by bay / shift / process.</p>
             </div>
             <div className="card">
               <h3>Three-state honesty</h3>
-              <p>Observed behaviour → potential risk → confirmed damage. We never claim a product was damaged without post-impact evidence (deformation, spill, no return to motion).</p>
-              <p>Every Critical card has a confidence bar and Human review required.</p>
+              <p>OBSERVED → POTENTIAL_RISK → CONFIRMED_DAMAGE. Explanations are templates, not LLM prose.</p>
             </div>
           </div>
         )}
 
         {tab === "Ingest" && (
           <div className="card">
-            <h3>Run a clip through the motion + FSM pipeline</h3>
-            <p className="tiny">YOLO is optional. This path uses MOG2 blobs + the same 10-behaviour FSM so a demo never depends on a weight file.</p>
-            <input type="file" accept="video/*" onChange={upload} />
-            {ingest && (
-              <pre className="tiny">{JSON.stringify(ingest, null, 2)}</pre>
-            )}
+            <h3>Upload a warehouse clip</h3>
+            <p className="tiny">
+              Perception (YOLO if installed, else MOG2) → TrackFeatures → 10 FSM detectors → risk → SQLite. YOLO is
+              optional; the contract is the tracklet stream.
+            </p>
+            <input type="file" accept="video/*" onChange={upload} disabled={busy} />
+            {busy && <p>Running temporal reasoning…</p>}
+            {ingest && <pre className="tiny">{JSON.stringify({ ...ingest, overlays: ingest.overlays?.slice(0, 3) }, null, 2)}</pre>}
           </div>
         )}
       </main>
