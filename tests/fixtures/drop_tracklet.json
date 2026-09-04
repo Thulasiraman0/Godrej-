@@ -1,0 +1,12 @@
+{
+  "comment": "Synthetic tracklet: carton carried then free-fall then impact.",
+  "frames": [
+    {"t": 0.0, "height_m": 0.9, "in_hand": true, "floor_contact": false, "vx": 0.1, "vy": 0.0, "ay": 0.0},
+    {"t": 0.2, "height_m": 0.9, "in_hand": true, "floor_contact": false, "vx": 0.1, "vy": 0.0, "ay": 0.0},
+    {"t": 0.4, "height_m": 0.85, "in_hand": false, "floor_contact": false, "vx": 0.0, "vy": -1.2, "ay": -6.0},
+    {"t": 0.6, "height_m": 0.5, "in_hand": false, "floor_contact": false, "vx": 0.0, "vy": -3.0, "ay": -9.0},
+    {"t": 0.8, "height_m": 0.08, "in_hand": false, "floor_contact": true, "vx": 0.0, "vy": -0.1, "ay": 8.0},
+    {"t": 1.0, "height_m": 0.05, "in_hand": false, "floor_contact": true, "vx": 0.0, "vy": 0.0, "ay": 0.0},
+    {"t": 1.2, "height_m": 0.05, "in_hand": false, "floor_contact": true, "vx": 0.0, "vy": 0.0, "ay": 0.0}
+  ]
+}
