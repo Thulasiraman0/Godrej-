@@ -1,10 +1,14 @@
 # Sahaayak — Warehouse Handling Co-pilot
 
-Godrej Enterprises Group @ graVITas 2026
+**Godrej Enterprises Group @ graVITas 2026**
 
-**Your warehouse camera, promoted from witness to coach.**
+> *Your warehouse camera, promoted from witness to coach.*
 
-The behaviour engine consumes **tracklets, not pixels**. Perception (YOLO + tracker + pose) produces `TrackFeature` objects. Everything downstream — behaviour detection, risk scoring, the LLM, the dashboard — reads only that stream.
+Sahaayak watches warehouse footage and turns unsafe material handling into risk alerts and coaching notes — before a mishandled refrigerator becomes a damage claim.
+
+## How it works
+
+The behaviour engine consumes **tracklets, not pixels**. Perception (YOLO + tracker + pose) produces `TrackFeature` objects, and everything downstream — behaviour detection, risk scoring, the assistant, and the dashboard — reads only that stream.
 
 ## Run
 
@@ -19,25 +23,25 @@ PYTHONPATH=. backend/.venv/bin/uvicorn server.app:app --host 0.0.0.0 --port 8000
 cd frontend && npm install && npm run dev
 ```
 
-Upload any MP4 on **Ingest**, or click **Run synthetic DROP clip** on Live wall.
+Upload any MP4 on **Ingest**, or click **Run synthetic DROP clip** on the **Live wall**.
 
 ## Layout
 
-```
-core/schemas.py          Track contract (frozen)
-core/config.py           thresholds (YAML-equivalent)
-perception/detector.py   YOLOv11-n or MOG2 fallback + SimpleTracker
-perception/features.py   Detection → TrackFeature + homography metres
-perception/pipeline.py   10 fps sampler, overlay writer
-behaviour/runner.py      10 FSM detectors + debounce
-risk/                    impact energy × fragility × history
-server/app.py            FastAPI ingest, chat, review, WS
-frontend/                supervisor dashboard
-tests/fixtures/          synthetic tracklets
-```
+| Path | Responsibility |
+| --- | --- |
+| `core/schemas.py` | Track contract (frozen) |
+| `core/config.py` | Thresholds (YAML-equivalent) |
+| `perception/detector.py` | YOLOv11-n or MOG2 fallback + SimpleTracker |
+| `perception/features.py` | Detection → `TrackFeature` + homography metres |
+| `perception/pipeline.py` | 10 fps sampler, overlay writer |
+| `behaviour/runner.py` | 10 FSM detectors + debounce |
+| `risk/` | Impact energy × fragility × history |
+| `server/app.py` | FastAPI ingest, chat, review, WS |
+| `frontend/` | Supervisor dashboard |
+| `tests/fixtures/` | Synthetic tracklets |
 
-## Ten behaviours
+## The ten behaviours
 
-DROP, DRAG, ROLL, IMPROPER_STACK, OVERHANG, UNSTABLE_STACK, STANDING_ON_CARTON, WRONG_ORIENTATION, NO_EQUIPMENT, STRAP_LIFT.
+`DROP`, `DRAG`, `ROLL`, `IMPROPER_STACK`, `OVERHANG`, `UNSTABLE_STACK`, `STANDING_ON_CARTON`, `WRONG_ORIENTATION`, `NO_EQUIPMENT`, `STRAP_LIFT`.
 
-Explanations are **templates**, not LLM text. The assistant only calls `query_events`.
+Explanations are **templates**, not LLM text — the assistant only calls `query_events`.
